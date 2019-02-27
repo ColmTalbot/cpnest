@@ -153,7 +153,13 @@ class CPNest(object):
         self.posterior_samples = self.get_posterior_samples(filename=None)
         if self.verbose>1: self.plot()
     
-        #TODO: Clean up the resume pickles
+        resume_files = [os.path.join(self.output, "sampler_{0:d}.pkl".format(i))
+                        for i in range(self.nthreads)]
+        resume_files.append(os.path.join(
+            self.output, "nested_sampler_resume.pkl"))
+        for resume_file in resume_files:
+            if os.path.isfile(resume_file):
+                os.remove(resume_file)
 
     def get_nested_samples(self, filename='nested_samples.dat'):
         """
