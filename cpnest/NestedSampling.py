@@ -312,17 +312,19 @@ class NestedSampler(object):
             print("Nested Sampling process {0!s}, exiting".format(os.getpid()))
             return 0
 
-        try:
-            while self.condition > self.tolerance:
-                self.consume_sample()
-        except CheckPoint:
-            self.checkpoint()
-            sys.exit()
+        while self.condition > self.tolerance:
+            self.consume_sample()
+        # try:
+        #     while self.condition > self.tolerance:
+        #         self.consume_sample()
+        # except CheckPoint:
+            # self.checkpoint()
+            # sys.exit()
 
         # final adjustments
         self.params.sort(key=attrgetter('logL'))
         for i, p in enumerate(self.params):
-            self.state.increment(p.logL, nlive=self.Nlive-i)
+            self.state.increment(p.logL, nlive=self.Nlive - i)
             self.nested_samples.append(p)
 
         # Refine evidence estimate
@@ -343,26 +345,24 @@ class NestedSampler(object):
         """
         Checkpoint its internal state
         """
-        print('Checkpointing nested sampling')
+        print('Checkpointing nested sampler')
         with open(self.resume_file, "wb") as f:
             pickle.dump(self, f)
-        sys.exit(0)
 
     @classmethod
-    def resume(cls, filename, usermodel):
+    def resume(cls, resume_file, model):
         """
         Resumes the interrupted state from a
         checkpoint pickle file.
         """
-        print('Resuming NestedSampler from '+filename)
-        with open(filename,"rb") as f:
+        print('Resuming NestedSampler from ' + resume_file)
+        with open(resume_file, "rb") as f:
             obj = pickle.load(f)
-        obj.model = usermodel
-        return(obj)
+        obj.model = model
+        return obj
 
     def __getstate__(self):
         state = self.__dict__.copy()
-        state['llmin'] = self.logLmin.value
         del state['model']
         return state
 

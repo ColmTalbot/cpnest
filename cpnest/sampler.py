@@ -80,14 +80,15 @@ class Sampler(object):
         self.sub_acceptance = 0.0
         self.mcmc_accepted = 0
         self.mcmc_counter = 0
+        self.counter = 0
         self.initialised = False
         self.output = output
         # the list of samples from the mcmc chain
         self.samples = list()
         # the history of the ACL of the chain, will be used to thin the output,
         # if requested
-        self.ACLs = []
-        # self.producer_pipe, self.thread_id = self.manager.connect_producer()
+        # FIXME: this is currently not stored
+        self.ACLs = list()
         self.live = None
         
     def reset(self):
@@ -126,7 +127,7 @@ class Sampler(object):
         self.counter = 0
         self.initialised = True
 
-    def estimate_nmcmc(self, safety=3, tau=None):
+    def estimate_nmcmc(self, safety=5, tau=None):
         """
         Estimate autocorrelation length of chain using acceptance fraction
         ACL = (2/acc) - 1
@@ -152,10 +153,11 @@ class Sampler(object):
         return self.Nmcmc
 
     def produce_sample(self):
-        try:
-            return self._produce_sample()
-        except CheckPoint:
-            self.checkpoint()
+        return self._produce_sample()
+        # try:
+        #     return self._produce_sample()
+        # except CheckPoint:
+        #     self.checkpoint()
     
     def _produce_sample(self):
         """
@@ -183,7 +185,6 @@ class Sampler(object):
         print('Checkpointing Sampler')
         with open(self.resume_file, "wb") as f:
             pickle.dump(self, f)
-        sys.exit(0)
 
     @classmethod
     def resume(cls, resume_file, model):
@@ -191,22 +192,20 @@ class Sampler(object):
         Resumes the interrupted state from a
         checkpoint pickle file.
         """
-        print('Resuming Sampler from '+resume_file)
+        print('Resuming Sampler from ' + resume_file)
         with open(resume_file, "rb") as f:
             obj = pickle.load(f)
         obj.model = model
-        return(obj)
+        return obj
 
     def __getstate__(self):
         state = self.__dict__.copy()
         # Remove the unpicklable entries.
         del state['model']
-        # del state['thread_id']
         return state
     
     def __setstate__(self, state):
         self.__dict__ = state
-        self.manager = None
 
     def yield_sample(self, logLmin):
         raise NotImplementedError()
@@ -275,14 +274,14 @@ class HamiltonianMonteCarloSampler(Sampler):
                         oldparam = newparam.copy()
                         sub_accepted += 1
         
-            # if self.verbose >= 3:
-            #     self.samples.append(oldparam)
+            if self.verbose >= 3:
+                self.samples.append(oldparam)
             
             self.sub_acceptance = sub_accepted / sub_counter
             self.mcmc_accepted += sub_accepted
             self.mcmc_counter += sub_counter
             self.acceptance = self.mcmc_accepted / self.mcmc_counter
-#
+
             for p in self.proposal.proposals:
                 p.update_time_step(self.acceptance, self.estimate_nmcmc())
 

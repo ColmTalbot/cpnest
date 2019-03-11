@@ -50,6 +50,7 @@ class CPNest(object):
         self.posterior_samples = None
         self.user = usermodel
         self.resume = resume
+        self.resume_files = list()
 
         if seed is None:
             self.seed = 1234
@@ -61,6 +62,7 @@ class CPNest(object):
         # instantiate the sampler class
         if nhamiltonian == 0:
             resume_file = os.path.join(output, "sampler.pkl")
+            self.resume_files.append(resume_file)
             if not os.path.exists(resume_file) or not resume:
                 sampler = MetropolisHastingsSampler(
                     self.user, maxmcmc, verbose=verbose, output=output,
@@ -68,10 +70,11 @@ class CPNest(object):
                     proposal=DefaultProposalCycle(), resume_file=resume_file)
             else:
                 sampler = MetropolisHastingsSampler.resume(
-                    resume_file, self.user)
+                    resume_file=resume_file, model=self.user)
 
         else:
             resume_file = os.path.join(output, "sampler.pkl")
+            self.resume_files.append(resume_file)
             if not os.path.exists(resume_file) or not resume:
                 sampler = HamiltonianMonteCarloSampler(
                     self.user, maxmcmc, verbose=verbose, output=output,
@@ -80,16 +83,19 @@ class CPNest(object):
                     resume_file=resume_file)
             else:
                 sampler = HamiltonianMonteCarloSampler.resume(
-                    resume_file, self.user)
+                    resume_file=resume_file, model=self.user)
 
         # instantiate the nested sampler class
         resume_file = os.path.join(output, "nested_sampler_resume.pkl")
+        self.resume_files.append(resume_file)
         if not os.path.exists(resume_file) or not resume:
             self.NS = NestedSampler(
                 self.user, nlive=nlive, output=output, verbose=verbose,
                 seed=self.seed, prior_sampling=False, sampler=sampler)
         else:
-            self.NS = NestedSampler.resume(resume_file, self.user)
+            self.NS = NestedSampler.resume(
+                resume_file=resume_file, model=self.user)
+            self.NS.sampler = sampler
 
     def run(self):
         """
@@ -103,17 +109,16 @@ class CPNest(object):
         
         try:
             self.NS.nested_sampling_loop()
-            for each in self.process_pool:
-                each.join()
         except CheckPoint:
             self.checkpoint()
-            sys.exit()
 
         self.posterior_samples = self.get_posterior_samples(filename=None)
         if self.verbose > 1:
             self.plot()
-    
-        #TODO: Clean up the resume pickles
+
+        for ff in self.resume_files:
+            if os.path.isfile(ff):
+                os.remove(ff)
 
     def get_nested_samples(self, filename='nested_samples.dat'):
         """
@@ -208,4 +213,6 @@ class CPNest(object):
     #         each.start()
 
     def checkpoint(self):
-        self.checkpoint_flag = 1
+        self.NS.checkpoint()
+        self.NS.sampler.checkpoint()
+        sys.exit(0)
