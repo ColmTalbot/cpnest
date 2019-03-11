@@ -1,7 +1,8 @@
-from abc import ABCMeta,abstractmethod,abstractproperty
+from abc import ABCMeta, abstractmethod
 from numpy import inf
 from .parameter import LivePoint
 from numpy.random import uniform
+
 
 class Model(object):
     """
@@ -9,10 +10,11 @@ class Model(object):
     and implement log_likelihood, names and bounds
     """
     __metaclass__ = ABCMeta
-    names=[] # Names of parameters, e.g. ['p1','p2']
-    bounds=[] # Bounds of prior as list of tuples, e.g. [(min1,max1), (min2,max2), ...]
+    names = list()  # Names of parameters, e.g. ['p1','p2']
+    # Bounds of prior as list of tuples, e.g. [(min1,max1), (min2,max2), ...]
+    bounds = list()
     
-    def in_bounds(self,param):
+    def in_bounds(self, param):
         """
         Checks whether param lies within the bounds
         
@@ -25,7 +27,8 @@ class Model(object):
             True: if all dimensions are within the bounds
             False: otherwise
         """
-        return all(self.bounds[i][0] < param.values[i] < self.bounds[i][1] for i in range(param.dimension))
+        return all(self.bounds[i][0] < param.values[i] < self.bounds[i][1]
+                   for i in range(param.dimension))
   
     def new_point(self):
         """
@@ -35,10 +38,12 @@ class Model(object):
         Return:
             p: :obj:`cpnest.parameter.LivePoint`
         """
-        logP=-inf
-        while(logP==-inf):
-            p = LivePoint(self.names,[uniform(self.bounds[i][0],self.bounds[i][1]) for i,_ in enumerate(self.names)] )
-            logP=self.log_prior(p)
+        logP = -inf
+        while logP == -inf:
+            p = LivePoint(
+                self.names, [uniform(self.bounds[i][0], self.bounds[i][1])
+                             for i, _ in enumerate(self.names)])
+            logP = self.log_prior(p)
         return p
   
     @abstractmethod
@@ -52,7 +57,7 @@ class Model(object):
         """
         pass
 
-    def log_prior(self,param):
+    def log_prior(self, param):
         """
         Returns log of prior.
         Default is flat prior within bounds
@@ -68,7 +73,8 @@ class Model(object):
         """
         if self.in_bounds(param):
             return 0.0
-        else: return -inf
+        else:
+            return -inf
 
     def potential(self,param):
         """
@@ -83,7 +89,7 @@ class Model(object):
         """
         return -self.log_prior(param)
 
-    def force(self,param):
+    def force(self, param):
         """
         returns the force (-grad potential)
         Required for Hamiltonian sampling
@@ -94,7 +100,7 @@ class Model(object):
         """
         pass
 
-    def strsample(self,sample):
+    def strsample(self, sample):
         """
         Return a string representation for the sample to be written
         to the output file. User may overload for additional output
@@ -105,8 +111,8 @@ class Model(object):
         Return:
             line: :string:
         """
-        line='\t'.join('{0:.20e}'.format(sample[n]) for n in sample.names)
-        line+='{0:20e}'.format(sample.logL)
+        line = '\t'.join('{0:.20e}'.format(sample[n]) for n in sample.names)
+        line += '{0:20e}'.format(sample.logL)
         return line
 
     def header(self):
