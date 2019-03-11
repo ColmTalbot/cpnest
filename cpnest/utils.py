@@ -1,0 +1,2 @@
+class CheckPoint(Exception):
+    pass
